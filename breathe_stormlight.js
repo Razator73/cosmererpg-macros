@@ -42,28 +42,19 @@
     const available = sphereItem.system.quantity;
     const toDrain = Math.min(needed, available);
 
-    // Use the action first to ensure it's not blocked or cancelled
-    // Since action.use() returns null regardless, we'll listen for the chat message creation to confirm success.
-    // We create a promise to wait for the hook because action.use might be async but not return the result we want.
-    // However, if we await action.use(), and it blocks until dialog close, the hook should have fired by then.
-
-    let actionSuccess = false;
-    const hookId = Hooks.once("createChatMessage", (doc) => {
-        // Check if the message is from our actor.
-        if (doc.speaker.actor === actor.id) {
-            actionSuccess = true;
+    const moduleId = "cosmere-advanced-encounters";
+    const isModuleActive = game.modules.get(moduleId)?.active;
+    const combatant = game.combat?.combatants.find(c => c.actorId === token.actor.id);
+    if (isModuleActive && combatant) {
+        const flags = combatant.flags["cosmere-advanced-encounters"];
+        const actionGroup = flags.actionsAvailableGroups[0];
+        if (actionGroup.remaining < 2) {
+            return ui.notifications.warn("You don't have enough actions to breathe stormlight!");
         }
-    });
+    }
 
     // Invoke the action
     await action.use({ actor: actor });
-
-    // If the hook didn't fire (e.g. cancelled dialog), unregister it and return
-    // We assume that if action.use returned, the dialog is closed.
-    if (!actionSuccess) {
-        Hooks.off("createChatMessage", hookId);
-        return;
-    }
 
     // Consume the spheres
     await sphereItem.update({ "system.quantity": available - toDrain });
