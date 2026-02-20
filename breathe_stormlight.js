@@ -1,5 +1,6 @@
 (async () => {
-    const actor = canvas.tokens.controlled[0]?.actor;
+    const token = canvas.tokens.controlled[0];
+    const actor = token?.actor;
 
     if (!actor) {
         return ui.notifications.warn("Select a token first!");
@@ -81,6 +82,28 @@
     // Manually override investiture if there were not enough to fill it
     if (needed > available) {
         await actor.update({ "system.resources.inv.value": currentInvestiture + available });
+    }
+
+    // --- Update Token Image ---
+    const currentImg = token.document.texture.src;
+    if (currentImg && !currentImg.includes(".radiating.")) {
+        const extIndex = currentImg.lastIndexOf(".");
+        if (extIndex !== -1) {
+            const baseImg = currentImg.substring(0, extIndex);
+            const ext = currentImg.substring(extIndex);
+            const investedTokenImage = `${baseImg}.radiating${ext}`;
+
+            try {
+                // Check if the radiating variant exists
+                const response = await fetch(investedTokenImage, { method: "HEAD" });
+                if (response.ok) {
+                    await token.document.update({ "texture.src": investedTokenImage });
+                }
+            } catch (err) {
+                // Image doesn't exist or network error, skip updating
+                console.error(err);
+            }
+        }
     }
 
     // Prepare chat message
